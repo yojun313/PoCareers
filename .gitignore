@@ -1,0 +1,16 @@
+# 비밀정보 / 로컬 상태
+.env
+state/
+recipients.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# uv
+.uv/
+
+# OS
+.DS_Store

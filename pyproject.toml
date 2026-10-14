@@ -1,0 +1,11 @@
+[project]
+name = "ses-notify"
+version = "0.1.0"
+description = "POSTECH SES 현장실습 기관 신규 공고 이메일 알림"
+requires-python = ">=3.10"
+dependencies = [
+    "playwright>=1.40",
+]
+
+[tool.uv]
+# uv run 시 자동으로 가상환경 구성
