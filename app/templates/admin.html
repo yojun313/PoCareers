@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}관리자 - {{ APP_NAME }}{% endblock %}
+{% block content %}
+<div class="container" style="padding-bottom: 60px;">
+  <div class="page-head">
+    <div>
+      <h1>관리자</h1>
+      <p class="page-sub">알림 메일 수신자와 SES 공고 수집 상태를 관리합니다.</p>
+    </div>
+  </div>
+
+  <div class="admin-stat-cards" id="admin-stat-cards">
+    <div class="empty-state"><span class="spinner"></span></div>
+  </div>
+
+  <div class="admin-grid">
+    <div class="card admin-list-card">
+      <div class="admin-list-head">
+        <div class="admin-list-title">
+          <h2>메일 수신자</h2>
+          <span class="admin-count" id="recipient-count">0</span>
+        </div>
+        <span class="admin-list-sub" id="mail-sender"></span>
+      </div>
+      <form class="recipient-add" id="recipient-form">
+        <input class="input" type="email" id="recipient-email" placeholder="받는 사람 이메일 주소" autocomplete="off" required />
+        <button class="btn btn-primary" type="submit">+ 추가</button>
+      </form>
+      <div class="admin-user-table-wrap">
+        <table class="admin-user-table">
+          <thead>
+            <tr><th>이메일</th><th class="admin-col-actions"></th></tr>
+          </thead>
+          <tbody id="recipient-rows"></tbody>
+        </table>
+      </div>
+      <div class="admin-log-pager">
+        <span>새 공고가 올라오면 위 주소 전원에게 한 통으로 보냅니다.</span>
+      </div>
+    </div>
+
+    <div class="card card-pad">
+      <div class="admin-card-head">
+        <h2>수집 상태</h2>
+        <span class="hint-inline" id="status-interval"></span>
+      </div>
+      <dl class="status-list" id="status-list"></dl>
+      <div class="error-msg status-error" id="status-error" hidden></div>
+      <div class="admin-actions">
+        <button class="btn btn-secondary" type="button" id="check-now-btn">지금 점검</button>
+        <a class="btn btn-ghost" href="{{ SES_SEARCH_URL }}" target="_blank" rel="noopener">SES 열기</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card admin-list-card">
+    <div class="admin-list-head">
+      <div class="admin-list-title">
+        <h2>모집 기간</h2>
+        <span class="admin-list-sub">SES 기관조회 상단 탭 (진행중)</span>
+      </div>
+    </div>
+    <div class="admin-user-table-wrap">
+      <table class="admin-user-table">
+        <thead><tr><th>기간</th><th>SES 번호</th><th class="num">공고</th></tr></thead>
+        <tbody id="period-rows"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="dialog-backdrop" id="remove-dialog">
+  <div class="dialog dialog-sm">
+    <div class="dialog-header">
+      <h2>수신자 삭제</h2>
+      <button class="btn-icon" type="button" data-dialog-close>&times;</button>
+    </div>
+    <p><b id="remove-email"></b> 주소로 더 이상 알림을 보내지 않습니다.</p>
+    <div class="dialog-footer">
+      <button type="button" class="btn btn-ghost" data-dialog-close>취소</button>
+      <button type="button" class="btn btn-danger" id="remove-confirm">삭제</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ asset('js/postings.js') }}"></script>
+<script src="{{ asset('js/admin.js') }}"></script>
+{% endblock %}

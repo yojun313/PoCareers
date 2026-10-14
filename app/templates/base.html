@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- 모바일: 입력 포커스 확대 금지 + 노치까지 화면 사용. safe-area 여백은 style.css 에서. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+    <script>
+      // 첫 페인트 전에 테마를 정해 잘못된 색이 번쩍이지 않게 합니다 (Commeet 와 같은 키).
+      (function () {
+        try {
+          var stored = localStorage.getItem("pcts_theme");
+          var theme = stored === "light" || stored === "dark"
+            ? stored
+            : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          /* localStorage 를 못 쓰면 CSS 의 prefers-color-scheme 이 대신합니다 */
+        }
+      })();
+    </script>
+    <title>{% block title %}{{ APP_NAME }} - {{ APP_FULL_NAME }}{% endblock %}</title>
+    <meta name="description" content="{% block description %}POSTECH SES 현장실습 공고를 기업별로 모아 보고, 새 공고를 메일로 받아 보세요.{% endblock %}" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12151b" />
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}" />
+    <link rel="stylesheet" href="{{ asset('css/style.css') }}" />
+    {% block extra_head %}{% endblock %}
+  </head>
+  <body>
+    {% include "partials/header.html" %}
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+    {% block footer %}{% include "partials/footer.html" %}{% endblock %}
+    <div id="snackbar-root"></div>
+    <script>const SES_PERIODS = {{ ses_periods() | tojson }};</script>
+    <script src="{{ asset('js/api.js') }}"></script>
+    <script src="{{ asset('js/ui.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+  </body>
+</html>

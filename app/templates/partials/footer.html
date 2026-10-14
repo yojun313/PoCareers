@@ -1,0 +1,36 @@
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-left">
+      <div class="footer-title">About</div>
+      <div class="footer-info">
+        <p><strong>{{ APP_NAME }} · {{ APP_FULL_NAME }}</strong></p>
+        <p>POSTECH 현장실습 온라인 시스템(SES)에 올라온 공고를 모아 보여 주는 비공식 서비스입니다.</p>
+        <p>지원·서류 제출은 반드시 <a href="{{ SES_SEARCH_URL }}" target="_blank" rel="noopener">SES 현장실습 기관조회</a>에서 진행하세요.</p>
+        <p style="margin-top: 10px;">
+          <strong>제작자:</strong>
+          <a href="https://www.yojun.dev" target="_blank" rel="noopener">Yojun Moon</a>
+          <a href="mailto:{{ SUPPORT_EMAIL }}">({{ SUPPORT_EMAIL }})</a>
+        </p>
+      </div>
+      <div class="footer-links">
+        <a href="{{ SES_SEARCH_URL }}" target="_blank" rel="noopener">SES 바로가기</a>
+        <a href="mailto:{{ SUPPORT_EMAIL }}">문의하기</a>
+      </div>
+      <div class="copyright">
+        Copyright © 2026. All rights reserved.
+      </div>
+    </div>
+
+    <div class="footer-right">
+      <div class="footer-logos">
+        <a href="https://www.postech.ac.kr/kor/index.do" target="_blank" rel="noopener">
+          <img src="{{ asset('images/postech-logo.png') }}" alt="POSTECH" class="footer-logo-img" />
+        </a>
+      </div>
+      <a class="footer-privacy" href="https://www.postech.ac.kr/kor/usage-guide/privacy_policy.do"
+         target="_blank" rel="noopener">
+        POSTECH 개인정보취급처리방침
+      </a>
+    </div>
+  </div>
+</footer>

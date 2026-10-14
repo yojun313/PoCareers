@@ -1,134 +1,89 @@
 #!/usr/bin/env python3
 """
-POSTECH SES 현장실습 기관 신규 공고 알림 - 단일 진입점.
+POSTECH SES 현장실습 공고 알림 + 공고 웹사이트 - 단일 진입점.
 
 실행:
-  uv run run.py              # 1회 점검 후 신규 공고가 있으면 메일 발송
-  uv run run.py --show       # 브라우저 창 띄워서 동작 확인(디버그)
-  uv run run.py --dry-run    # 메일 발송 없이 신규 공고만 출력
+  uv run run.py                  # 메일 스케줄러 + 웹 서버 동시 실행 (기본)
+  uv run run.py --once           # 1회 점검 후 종료 (cron 용, 웹 서버 없음)
+  uv run run.py --dry-run        # 메일 발송 없이 동작 (스케줄러·웹 모두 실행)
+  uv run run.py --no-web         # 스케줄러만
+  uv run run.py --no-scheduler   # 웹 서버만 (저장된 공고만 보여 줌)
+  uv run run.py --show           # 브라우저 창 띄워서 로그인 동작 확인(디버그)
 
 리눅스 서버(Ubuntu)는 최초 1회:
   uv sync
   uv run playwright install --with-deps chromium
 """
-import json
-import os
+
+import socket
 import sys
-import time
-import traceback
-from datetime import datetime
 
-from config import load_env, require, write_private, SEEN, STATE_DIR
-from ses_client import get_search_html
-from parser import parse_postings
-import notify
+from app.config import ADMIN_ENABLED, HOST, PORT, SES_ID, SES_PW
 
 
-def load_seen(path=SEEN):
-    if os.path.exists(path):
+def port_in_use(host, port) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            return set(json.load(open(path, encoding="utf-8")))
-        except Exception:
-            return set()
-    return set()
-
-
-def save_seen(keys, path=SEEN):
-    os.makedirs(STATE_DIR, exist_ok=True)
-    write_private(path, json.dumps(sorted(keys), ensure_ascii=False, indent=2))
-
-
-def check_once(env, show=False, dry=False):
-    """1회 점검. 신규 공고가 있으면 발송하고 seen 갱신."""
-    print("[*] 기업조회 페이지 로딩 중 ...")
-    html = get_search_html(env["SES_ID"], env["SES_PW"], headless=not show)
-    postings = parse_postings(html)
-    print(f"[*] 현재 공고 {len(postings)}건 파싱.")
-
-    first_run = not os.path.exists(SEEN)
-    seen = load_seen()
-    new = [p for p in postings if p["key"] not in seen]
-
-    if first_run:
-        print(f"[*] 최초 실행: 기존 {len(postings)}건을 기준선으로 저장(메일 미발송).")
-        save_seen({p["key"] for p in postings})
-        return 0
-
-    if not new:
-        print("[*] 신규 공고 없음.")
-        return 0
-
-    print(f"[+] 신규 공고 {len(new)}건:")
-    for p in new:
-        print(f"    - {p.get('기관명','')} / {p.get('부서명','')} "
-              f"({p.get('실습기간','')}, 마감 {p.get('접수마감','')})")
-
-    if dry:
-        print("[*] --dry-run: 메일 미발송.")
-        return 0
-
-    recipients = notify.load_recipients()
-    if not recipients:
-        print("[!] 수신자가 없어 메일을 보내지 않습니다. seen 도 갱신하지 않습니다.")
-        return 1
-
-    require(env, "GMAIL_ADDRESS", "GMAIL_APP_PASSWORD")
-    if notify.send(env, new, recipients):
-        # 발송 성공한 공고만 seen 에 추가 -> 한 번 보낸 건 재발송 안 함
-        seen.update(p["key"] for p in new)
-        save_seen(seen)
-    return 0
-
-
-def interval_seconds(env):
-    try:
-        minutes = float(env.get("CHECK_INTERVAL_MINUTES", "10"))
-    except ValueError:
-        minutes = 10.0
-    return max(60, int(minutes * 60))  # 최소 60초
+            s.bind((host, port))
+        except OSError:
+            return True
+    return False
 
 
 def main():
-    show = "--show" in sys.argv
-    dry = "--dry-run" in sys.argv
-    once = "--once" in sys.argv
+    # nohup/systemd 처럼 터미널이 아닐 때도 로그가 바로바로 남도록.
+    sys.stdout.reconfigure(line_buffering=True)
+    args = set(sys.argv[1:])
+    show = "--show" in args
+    dry = "--dry-run" in args
+    no_web = "--no-web" in args
+    no_scheduler = "--no-scheduler" in args
 
-    env = load_env()
-    require(env, "SES_ID", "SES_PW")
+    if not no_scheduler and not (SES_ID and SES_PW):
+        sys.exit("[!] .env 에 SES_ID / SES_PW 가 필요합니다.")
 
-    if once:
-        return check_once(env, show=show, dry=dry)
+    if "--once" in args:
+        from app.services.scheduler import check_once
 
-    period = interval_seconds(env)
-    print(f"[*] 상주 모드 시작: {period // 60}분 주기로 점검합니다. (Ctrl+C 로 종료)")
+        check_once(show=show, dry=dry)
+        return 0
 
-    # 시작 알림 메일 1회 (발송 설정이 갖춰진 경우에만)
-    if not dry:
-        recipients = notify.load_recipients()
-        if recipients and env.get("GMAIL_ADDRESS") and env.get("GMAIL_APP_PASSWORD"):
-            try:
-                notify.send_startup(env, recipients, period // 60)
-            except Exception:
-                print("[!] 시작 알림 메일 발송 실패 (점검은 계속 진행):")
-                traceback.print_exc()
+    # 웹 포트를 스케줄러보다 먼저 확인합니다. 바인딩 실패로 죽으면 pm2 가
+    # 계속 재시작하는데, 그때마다 스케줄러가 먼저 떠서 "시작 알림" 메일이
+    # 재시작 횟수만큼 나갈 수 있습니다.
+    if not no_web and port_in_use(HOST, PORT):
+        sys.exit(
+            f"[!] {HOST}:{PORT} 포트를 이미 다른 프로그램이 쓰고 있습니다. "
+            ".env 의 PORT 를 바꾸세요."
+        )
 
-    while True:
-        stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"\n===== {stamp} 점검 =====")
+    from app.services.scheduler import scheduler
+
+    if not no_scheduler:
+        # 스케줄러는 별도 스레드 - Playwright sync API 는 uvicorn 의
+        # asyncio 루프가 도는 스레드에서 쓸 수 없습니다.
+        scheduler.start(show=show, dry=dry)
+
+    if no_web:
         try:
-            check_once(env, show=show, dry=dry)
+            scheduler.join()
         except KeyboardInterrupt:
             print("\n[*] 종료합니다.")
-            return 0
-        except Exception:
-            # 일시적 오류(네트워크/세션 등)로 상주 프로세스가 죽지 않게 방어
-            print("[!] 이번 점검 중 오류 발생 (다음 주기에 재시도):")
-            traceback.print_exc()
-        try:
-            time.sleep(period)
-        except KeyboardInterrupt:
-            print("\n[*] 종료합니다.")
-            return 0
+        return 0
+
+    import uvicorn
+    from app.main import app
+
+    if not ADMIN_ENABLED:
+        print(
+            "[!] .env 에 ADMIN_ID / ADMIN_PASSWORD 가 없어 관리자 화면에 로그인할 수 없습니다."
+        )
+    print(f"[*] 웹 서버: http://{HOST}:{PORT}")
+    # Ctrl+C 는 uvicorn 이 받아 정상 종료하고, 스케줄러는 daemon 스레드라 함께 끝납니다.
+    uvicorn.run(app, host=HOST, port=PORT, log_level="warning")
+    print("[*] 종료합니다.")
+    return 0
 
 
 if __name__ == "__main__":

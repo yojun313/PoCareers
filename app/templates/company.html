@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{{ company.name }} - {{ APP_NAME }}{% endblock %}
+{% block description %}{{ company.name }} 현장실습 공고 {{ company.postings|length }}건{% endblock %}
+{% block content %}
+<div class="container">
+  <a class="back-link" href="/">&larr; 전체 공고</a>
+
+  <section class="card company-hero">
+    <div class="company-hero-top">
+      <div>
+        <div class="company-hero-badges">
+          {% if company.type %}<span class="badge badge-muted">{{ company.type }}</span>{% endif %}
+          <span class="badge">진행 중 {{ company.activeCount }}건</span>
+          {% if company.postings|length > company.activeCount %}
+          <span class="badge badge-outline">마감 {{ company.postings|length - company.activeCount }}건</span>
+          {% endif %}
+        </div>
+        <h1>{{ company.name }}</h1>
+      </div>
+      <a class="btn btn-secondary btn-sm" href="{{ SES_SEARCH_URL }}" target="_blank" rel="noopener">SES에서 지원하기 &rarr;</a>
+    </div>
+    <div class="company-hero-info">
+      {% if company.address %}<span><b>근무지</b>{{ company.address }}</span>{% endif %}
+      {% if company.homepage %}<span><b>홈페이지</b>{{ company.homepage }}</span>{% endif %}
+    </div>
+    {% if company.intro %}
+    <p class="company-intro">{{ company.intro }}</p>
+    {% endif %}
+  </section>
+
+  <div class="detail-layout">
+    <nav class="card detail-nav" aria-label="공고 목록">
+      <h2>공고 {{ company.postings|length }}건</h2>
+      {% for p in company.postings %}
+      <a href="#p-{{ p.jid }}" class="{{ 'closed' if p.closed }}" data-nav-for="p-{{ p.jid }}">
+        <span class="detail-nav-badges">
+          <span class="badge" data-period="{{ p.jsSeq }}">{{ p.periodShort or p.period }}</span>
+          <span class="badge" data-deadline="{{ p.deadlineIso or '' }}" data-closed="{{ '1' if p.closed else '' }}"></span>
+        </span>
+        <span class="dept">{{ p['부서명'] or '부서 미지정' }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+
+    <div>
+      {% for p in company.postings %}
+      <article class="card posting-card {{ 'closed' if p.closed }}" id="p-{{ p.jid }}">
+        <header class="posting-head">
+          <div class="posting-head-badges">
+            <span class="badge" data-period="{{ p.jsSeq }}" title="{{ p.period }}">{{ p.period }}</span>
+            <span class="badge" data-deadline="{{ p.deadlineIso or '' }}" data-closed="{{ '1' if p.closed else '' }}"></span>
+            {% if p.isNew %}<span class="badge badge-new">NEW</span>{% endif %}
+            {% if not p.active %}<span class="badge badge-outline">SES 목록에서 내려감</span>{% endif %}
+          </div>
+          <h2>{{ p['부서명'] or '부서 미지정' }}</h2>
+          {% if p['직무명'] %}<p class="posting-job">{{ p['직무명'] }}</p>{% endif %}
+        </header>
+
+        <div class="fact-grid">
+          <div class="fact">
+            <div class="fact-label">실습기간</div>
+            <div class="fact-value">{{ p.startDate or p['실습기간'] }}{% if p.endDate %} ~{% endif %}</div>
+            <div class="fact-sub">{% if p.endDate %}{{ p.endDate }}{% endif %}{% if p.weeks %} · 약 {{ p.weeks }}주{% endif %}</div>
+          </div>
+          <div class="fact">
+            <div class="fact-label">접수마감</div>
+            <div class="fact-value">{{ p['접수마감'] or '-' }}</div>
+            <div class="fact-sub" data-deadline-text="{{ p.deadlineIso or '' }}"></div>
+          </div>
+          <div class="fact">
+            <div class="fact-label">참여 / 모집</div>
+            <div class="fact-value">{{ p['참여인원'] if p['참여인원'] is not none else '-' }} / {{ p['모집인원'] or '-' }}명</div>
+            <div class="fact-sub">{{ p['근무지'] }}</div>
+          </div>
+          <div class="fact">
+            <div class="fact-label">실습지원금</div>
+            <div class="fact-value">{{ p['실습지원금'] or '-' }}</div>
+            <div class="fact-sub">{{ p['구분'] }}</div>
+          </div>
+        </div>
+
+        <div class="posting-body">
+          <section class="detail-section">
+            <h3>선발학과</h3>
+            <div class="filter-chips">
+              {% for d in p['선발학과'] %}<span class="badge badge-muted">{{ d }}</span>{% endfor %}
+            </div>
+          </section>
+          {% for sec in p.detail %}
+          <section class="detail-section">
+            <h3>{{ sec.title }}</h3>
+            <dl class="kv">
+              {% for k, v in sec.rows %}
+              <dt>{{ k }}</dt>
+              <dd class="{{ 'empty' if v == '-' }}">{{ v }}</dd>
+              {% endfor %}
+            </dl>
+          </section>
+          {% else %}
+          <p class="detail-missing">상세 정보를 아직 받아 오지 못했습니다. 다음 점검 때 채워집니다.</p>
+          {% endfor %}
+        </div>
+
+        <footer class="posting-foot">
+          <span>SES 공고번호 {{ p.jid }}</span>
+          <span data-local-time="{{ p.firstSeen or '' }}" data-prefix="처음 확인 "></span>
+        </footer>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ asset('js/postings.js') }}"></script>
+<script src="{{ asset('js/company.js') }}"></script>
+{% endblock %}

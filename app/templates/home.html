@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}현장실습 공고 - {{ APP_NAME }}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1>현장실습 공고</h1>
+      <p class="page-sub">SES 현장실습 기관조회에 올라온 공고를 기업별로 모았습니다.</p>
+    </div>
+    <div class="page-head-meta" id="updated-meta"></div>
+  </div>
+
+  <!-- 모집 기간(SES 상단 탭)별 카드 - 누르면 그 기간 공고만 봅니다. -->
+  <div class="period-cards" id="period-cards">
+    <div class="empty-state"><span class="spinner"></span></div>
+  </div>
+
+  <div class="list-layout">
+    <aside class="list-side">
+      <div class="card card-pad">
+        <button class="btn btn-ghost btn-block filters-toggle" type="button" id="filters-toggle" style="display: none;">
+          필터 열기
+        </button>
+        <div class="filters-body" id="filters-body">
+          <h2>필터</h2>
+          <div class="field">
+            <label for="q">검색</label>
+            <input class="input search-input" id="q" type="search" placeholder="기업명, 부서, 직무, 학과" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label>기관 구분</label>
+            <div class="filter-chips" id="type-chips"></div>
+          </div>
+          <div class="field">
+            <label>근무 지역</label>
+            <div class="filter-chips" id="region-chips"></div>
+          </div>
+          <div class="field">
+            <label>선발 학과</label>
+            <select class="input" id="dept-select">
+              <option value="">전체 학과</option>
+            </select>
+          </div>
+          <label class="checkbox-row">
+            <input type="checkbox" id="show-closed" />
+            <span class="checkbox-copy">
+              마감된 공고도 보기
+              <div class="desc">접수 마감이 지났거나 SES 목록에서 내려간 공고</div>
+            </span>
+          </label>
+          <button class="btn btn-ghost btn-sm btn-block filter-reset" type="button" id="filter-reset">필터 초기화</button>
+        </div>
+      </div>
+    </aside>
+
+    <section class="list-main">
+      <div class="list-main-head">
+        <h2>기업 <span class="admin-count" id="company-count">0</span></h2>
+        <span class="hint-inline" id="posting-count"></span>
+        <select class="input list-sort-select" id="sort-select" aria-label="정렬">
+          <option value="deadline">마감 임박순</option>
+          <option value="new">최근 등록순</option>
+          <option value="pay">지원금 높은순</option>
+          <option value="quota">모집인원 많은순</option>
+          <option value="name">기업명순</option>
+        </select>
+        <div class="toggle-group" id="view-toggle" aria-label="보기 방식">
+          <button type="button" data-view="grid">그리드</button>
+          <button type="button" data-view="list">리스트</button>
+        </div>
+      </div>
+      <div id="company-list">
+        <div class="empty-state"><span class="spinner"></span></div>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ asset('js/postings.js') }}"></script>
+<script src="{{ asset('js/home.js') }}"></script>
+{% endblock %}

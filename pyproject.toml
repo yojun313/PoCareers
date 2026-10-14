@@ -1,10 +1,16 @@
 [project]
 name = "ses-notify"
-version = "0.1.0"
-description = "POSTECH SES 현장실습 기관 신규 공고 이메일 알림"
+version = "0.2.0"
+description = "POSTECH SES 현장실습 공고 알림 + 기업별 공고 웹사이트"
 requires-python = ">=3.10"
 dependencies = [
+    "beautifulsoup4>=4.12",
+    "fastapi>=0.115",
+    "itsdangerous>=2.2",
+    "jinja2>=3.1",
     "playwright>=1.40",
+    "python-dotenv>=1.0",
+    "uvicorn>=0.30",
 ]
 
 [tool.uv]

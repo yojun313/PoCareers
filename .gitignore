@@ -14,3 +14,6 @@ venv/
 
 # OS
 .DS_Store
+
+# 상태 파일 임시본
+*.tmp

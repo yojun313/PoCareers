@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}마감 캘린더 - {{ APP_NAME }}{% endblock %}
+{% block content %}
+<div class="container" style="padding-bottom: 60px;">
+  <div class="page-head cal-head">
+    <div>
+      <h1 id="cal-label" class="cal-page-label"></h1>
+      <p class="page-sub">기업별 신청 마감일과 전형 일정을 달력으로 봅니다.</p>
+    </div>
+    <div class="cal-page-toolbar">
+      <button class="btn btn-ghost btn-sm" type="button" id="cal-today">오늘</button>
+      <button class="btn-icon" type="button" id="cal-prev" aria-label="이전 달">&lsaquo;</button>
+      <button class="btn-icon" type="button" id="cal-next" aria-label="다음 달">&rsaquo;</button>
+    </div>
+  </div>
+
+  <div class="cal-filters">
+    <div class="filter-chips" id="cal-kind-chips" aria-label="일정 종류"></div>
+    <div class="filter-chips" id="cal-period-chips" aria-label="모집 기간"></div>
+  </div>
+
+  <div class="cal-page-weekdays" id="cal-weekdays"></div>
+  <div class="cal-page-grid" id="cal-grid-root">
+    <div class="empty-state"><span class="spinner"></span></div>
+  </div>
+
+  <div class="card admin-list-card">
+    <div class="admin-list-head">
+      <div class="admin-list-title">
+        <h2 id="agenda-title">이달의 일정</h2>
+        <span class="admin-count" id="agenda-count">0</span>
+      </div>
+    </div>
+    <div id="agenda-list" class="agenda-list"></div>
+  </div>
+</div>
+
+<div class="dialog-backdrop" id="cal-day-dialog">
+  <div class="dialog dialog-sm">
+    <div class="dialog-header">
+      <h2 id="cal-day-title"></h2>
+      <button class="btn-icon" type="button" data-dialog-close>&times;</button>
+    </div>
+    <div id="cal-day-body" class="agenda-list"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ asset('js/postings.js') }}"></script>
+<script src="{{ asset('js/calendar.js') }}"></script>
+{% endblock %}
