@@ -5,7 +5,16 @@ SES 로그인 및 기업조회 페이지 HTML 획득 (Playwright).
 세션 쿠키는 state/storage.json 에 저장/재사용한다.
 """
 import os
+import stat
 from config import BASE, SEARCH_URL, STATE_DIR, STORAGE
+
+
+def _save_storage(ctx):
+    ctx.storage_state(path=STORAGE)
+    try:
+        os.chmod(STORAGE, stat.S_IRUSR | stat.S_IWUSR)  # 0600: 세션 쿠키 보호
+    except OSError:
+        pass
 
 
 def _fill_and_login(page, sid, pw):
@@ -77,7 +86,7 @@ def get_search_html(sid, pw, headless=True):
             if not _is_logged_in(page):
                 browser.close()
                 raise RuntimeError("로그인은 됐으나 기업조회 페이지 접근 실패.")
-            ctx.storage_state(path=STORAGE)
+            _save_storage(ctx)
 
         html = page.content()
         browser.close()

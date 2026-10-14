@@ -22,10 +22,21 @@ def load_env(path=".env"):
                 env[k.strip()] = v.strip()
     # 환경변수가 설정돼 있으면 그것으로 덮어쓰기 (CI/cron 대응)
     for k in ("SES_ID", "SES_PW", "SES_GROUP",
-              "GMAIL_ADDRESS", "GMAIL_APP_PASSWORD"):
+              "GMAIL_ADDRESS", "GMAIL_APP_PASSWORD", "CHECK_INTERVAL_MINUTES"):
         if os.environ.get(k):
             env[k] = os.environ[k]
     return env
+
+
+def write_private(path, text):
+    """민감 파일을 소유자만 읽기/쓰기(0600) 권한으로 저장."""
+    import stat
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    try:
+        os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)  # 0600
+    except OSError:
+        pass
 
 
 def require(env, *keys):

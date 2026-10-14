@@ -39,17 +39,47 @@ cp recipients.example.json recipients.json   # 알림 받을 이메일 목록(JS
 
 ## 실행
 ```bash
-uv run run.py             # 1회 점검 + 신규 공고 메일 발송
+uv run run.py             # 상주 모드: CHECK_INTERVAL_MINUTES 주기로 계속 점검
+uv run run.py --once      # 1회만 점검하고 종료 (cron 용)
 uv run run.py --dry-run   # 발송 없이 신규 공고만 출력
 uv run run.py --show      # 브라우저 창 띄워 동작 확인(디버그)
 ```
 
-## 주기 실행 (예시)
-- **cron** (리눅스, 10분마다):
-  ```cron
-  */10 * * * * cd /path/to/ses-notify && /path/to/uv run run.py >> state/cron.log 2>&1
-  ```
+- `run.py`를 그냥 실행하면 **종료 전까지 계속** 돌며, `.env`의 `CHECK_INTERVAL_MINUTES`(기본 10분)마다 점검합니다.
+- 상주 모드로 **처음 켜지면 "알림 시스템이 시작되었습니다" 메일을 1회** 보냅니다.
+- 점검 중 일시적 오류(네트워크/세션 만료 등)가 나도 프로세스는 죽지 않고 다음 주기에 재시도합니다.
+
+## Ubuntu 서버에 상시 가동 (systemd 권장)
+`/etc/systemd/system/ses-notify.service`:
+```ini
+[Unit]
+Description=SES Notify
+After=network-online.target
+
+[Service]
+Type=simple
+User=youruser
+WorkingDirectory=/home/youruser/ses-notify
+ExecStart=/home/youruser/.local/bin/uv run run.py
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now ses-notify
+journalctl -u ses-notify -f        # 로그 보기
+```
+> cron으로 돌리려면 상주 모드 대신 `--once`를 쓰세요:
+> `*/10 * * * * cd ~/ses-notify && ~/.local/bin/uv run run.py --once >> state/cron.log 2>&1`
+
+## 보안
+- `.env`, `recipients.json`, `state/`(세션 쿠키·발송 이력)는 `.gitignore`로 **커밋에서 제외**됩니다.
+- `.env`와 `state/`의 민감 파일은 소유자만 접근 가능하도록 `0600` 권한으로 저장됩니다. (`.env`도 `chmod 600 .env` 권장)
+- 비밀번호는 로그에 출력되지 않으며, SSO 암호화는 실제 브라우저가 수행(인증서 검증 포함)합니다.
+- Gmail 비밀번호는 계정 비밀번호가 아니라 **앱 비밀번호**를 사용하세요.
 
 ## 비고
-- `.env`, `state/`, `recipients.json` 은 `.gitignore` 로 제외됩니다(민감정보).
 - 공고 표가 비어 있으면("데이터가 없습니다") 모집 시즌이 아니거나 이력서/자기소개서 미작성 상태일 수 있습니다.

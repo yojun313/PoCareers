@@ -43,6 +43,30 @@ def _html_body(postings):
         f"현장실습 기관조회</a></p>")
 
 
+def send_startup(env, recipients, interval_min):
+    """상주 모드 시작 알림(켜졌음) 메일 1회 발송."""
+    if not recipients:
+        return False
+    sender = env["GMAIL_ADDRESS"]
+    pw = env["GMAIL_APP_PASSWORD"]
+    body = (
+        "<p>POSTECH SES 신규 현장실습 기관 알림이 <b>시작되었습니다</b>.</p>"
+        f"<p>이제부터 <b>{interval_min}분</b>마다 새 공고를 점검하여, "
+        "신규 공고가 올라오면 이 주소로 알림을 보냅니다.</p>"
+        "<p style='color:#888;font-size:12px'>바로가기: "
+        "<a href='https://ses.postech.ac.kr/student/manage/search/index.do'>"
+        "현장실습 기관조회</a></p>")
+    msg = MIMEText(body, "html", "utf-8")
+    msg["Subject"] = Header("[SES 알림] 알림 시스템이 시작되었습니다", "utf-8")
+    msg["From"] = formataddr((str(Header("SES 알림", "utf-8")), sender))
+    msg["To"] = ", ".join(recipients)
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as s:
+        s.login(sender, pw)
+        s.sendmail(sender, recipients, msg.as_string())
+    print(f"[O] 시작 알림을 {len(recipients)}명에게 발송했습니다.")
+    return True
+
+
 def send(env, postings, recipients):
     """postings(신규 공고 리스트)를 recipients 전원에게 발송. 성공 시 True."""
     if not postings or not recipients:
