@@ -13,7 +13,7 @@ import stat
 import time
 
 from app.config import SES_BASE, SES_DETAIL_URL, SES_SEARCH_URL, STATE_DIR, STORAGE_FILE
-from app.services import parser
+from app.services import parser, sso
 
 # 공고 한 탭에 이보다 많은 페이지는 없다고 보고 끊는다 (무한 루프 방지).
 _MAX_PAGES = 30
@@ -41,34 +41,10 @@ def _fill_and_login(page, sid, pw):
     page.evaluate("index.topLogin('1')")  # SSOService.do 로 submit
     page.wait_for_load_state("networkidle", timeout=30000)
 
-    if "sso.postech.ac.kr" not in page.url:
+    if not sso.on_sso_page(page):
         return _is_logged_in(page)
-
-    page.wait_for_selector("#login_id", timeout=15000)
-    # ECDH 키교환(client_calkey) 준비 대기
-    page.wait_for_function(
-        "() => typeof client_calkey !== 'undefined' && client_calkey "
-        "&& client_calkey.length > 0",
-        timeout=15000,
-    )
-    page.fill("#login_id", sid)
-    page.fill("#login_pwd", pw)
-    resp = page.evaluate("() => loginModule.auth('/sso/usr/postech/login/auth', lang)")
-    code = resp.get("code") if isinstance(resp, dict) else None
-
-    if code in ("SS0001", "SS0009"):
-        with page.expect_navigation(timeout=30000):
-            page.evaluate(
-                "() => { $('form[name=loginForm]').first()"
-                ".attr('action','/sso/usr/postech/login/link').submit(); }"
-            )
-        page.wait_for_load_state("networkidle", timeout=30000)
-        return True
-    if code == "SS0030":
-        raise SesError(
-            "2차 인증(OTP)이 요구됩니다 (SS0030). 교내망에서 시도하거나 OTP 설정 필요."
-        )
-    raise SesError(f"로그인 실패: SSO 응답 코드 {code} (아이디/비밀번호 확인).")
+    sso.sso_login(page, sid, pw)
+    return True
 
 
 def _is_logged_in(page):

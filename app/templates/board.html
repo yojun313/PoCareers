@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ board_name }} - {{ APP_NAME }}{% endblock %}
+{% block content %}
+<div class="container board-page">
+  <div class="board-title-box">
+    <h1>{{ board_name }}</h1>
+    <p>인턴 및 채용 정보를 안내하는 게시판입니다</p>
+    <p class="board-title-en">This bulletin board shares employment opportunities</p>
+  </div>
+
+  <div class="board-tabs" id="board-tabs" role="tablist" aria-label="분류"></div>
+
+  <div class="board-toolbar">
+    <form class="board-search" id="board-search">
+      <select class="input" id="board-field" aria-label="검색 항목">
+        <option value="title">제목</option>
+        <option value="writer">작성자</option>
+        <option value="text">내용</option>
+      </select>
+      <input class="input" id="board-q" type="search" placeholder="검색어를 입력해 주세요" autocomplete="off" />
+      <button class="btn board-search-btn" type="submit">검색</button>
+    </form>
+    <a class="btn btn-ghost btn-sm" href="{{ board_url }}" target="_blank" rel="noopener">원문 게시판 &rarr;</a>
+  </div>
+
+  <div class="board-count-row">
+    <p class="board-total">총 <b id="board-count">0</b> 건</p>
+    <span class="hint-inline" id="board-meta"></span>
+  </div>
+
+  <table class="board-table">
+    <colgroup>
+      <col class="c-no" /><col class="c-cat" /><col /><col class="c-writer" /><col class="c-date" /><col class="c-views" />
+    </colgroup>
+    <thead>
+      <tr><th>번호</th><th>분류</th><th>제목</th><th>작성자</th><th>등록일</th><th>조회</th></tr>
+    </thead>
+    <tbody id="board-rows">
+      <tr><td colspan="6" class="board-empty"><span class="spinner"></span></td></tr>
+    </tbody>
+  </table>
+
+  <nav class="board-pager" id="board-pager" aria-label="페이지"></nav>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ asset('js/postings.js') }}"></script>
+<script src="{{ asset('js/board.js') }}"></script>
+{% endblock %}

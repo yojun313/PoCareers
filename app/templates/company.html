@@ -11,6 +11,7 @@
         <div class="company-hero-badges">
           {% if company.type %}<span class="badge badge-muted">{{ company.type }}</span>{% endif %}
           <span class="badge">진행 중 {{ company.activeCount }}건</span>
+          {% if company.activeCount %}<span class="badge badge-outline">지원 <b id="hero-applicants">{{ company.applicantTotal }}</b>명</span>{% endif %}
           {% if company.postings|length > company.activeCount %}
           <span class="badge badge-outline">마감 {{ company.postings|length - company.activeCount }}건</span>
           {% endif %}
@@ -22,6 +23,7 @@
     <div class="company-hero-info">
       {% if company.address %}<span><b>근무지</b>{{ company.address }}</span>{% endif %}
       {% if company.homepage %}<span><b>홈페이지</b>{{ company.homepage }}</span>{% endif %}
+      <span class="hint-inline" data-updated-at="{{ company.updatedAt or '' }}"></span>
     </div>
     {% if company.intro %}
     <p class="company-intro">{{ company.intro }}</p>
@@ -67,17 +69,23 @@
             <div class="fact-value">{{ p['접수마감'] or '-' }}</div>
             <div class="fact-sub" data-deadline-text="{{ p.deadlineIso or '' }}"></div>
           </div>
-          <div class="fact">
-            <div class="fact-label">참여 / 모집</div>
-            <div class="fact-value">{{ p['참여인원'] if p['참여인원'] is not none else '-' }} / {{ p['모집인원'] or '-' }}명</div>
-            <div class="fact-sub">{{ p['근무지'] }}</div>
+          <div class="fact fact-apply" data-applicants-jid="{{ p.jid }}">
+            <div class="fact-label">지원 / 모집 <span class="live-dot" aria-hidden="true"></span></div>
+            <div class="fact-value"><b data-field="applicants">{{ p.applicants if p.applicants is not none else '-' }}</b> / {{ p.quota or '-' }}명</div>
+            <div class="fact-sub" data-field="apply-sub"
+                 data-ratio="{{ p.ratio if p.ratio is not none else '' }}"
+                 data-delta="{{ p.applicantsDelta24h or '' }}"></div>
           </div>
           <div class="fact">
             <div class="fact-label">실습지원금</div>
             <div class="fact-value">{{ p['실습지원금'] or '-' }}</div>
-            <div class="fact-sub">{{ p['구분'] }}</div>
+            <div class="fact-sub">{{ p['근무지'] }}</div>
           </div>
         </div>
+
+        {% if p.applicantsHistory|length > 1 %}
+        <div class="apply-history" data-history='{{ p.applicantsHistory|tojson }}' data-quota="{{ p.quota or 0 }}"></div>
+        {% endif %}
 
         <div class="posting-body">
           <section class="detail-section">

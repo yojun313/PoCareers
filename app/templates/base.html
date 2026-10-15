@@ -20,9 +20,20 @@
     </script>
     <title>{% block title %}{{ APP_NAME }} - {{ APP_FULL_NAME }}{% endblock %}</title>
     <meta name="description" content="{% block description %}POSTECH SES 현장실습 공고를 기업별로 모아 보고, 새 공고를 메일로 받아 보세요.{% endblock %}" />
+    <!-- 홈 화면 앱(PWA) - Commeet 와 같은 구성. apple-* 메타와 아이콘은 "홈 화면에 추가"하는
+         순간 한 번만 읽히므로, 바꾸면 아이콘을 지우고 다시 추가해야 반영됩니다.
+         아이콘은 scripts/make_icons.py 로 만듭니다. -->
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="PoCareers" />
+    <meta name="application-name" content="PoCareers" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12151b" />
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}" />
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('icons/favicon-32.png') }}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('icons/apple-touch-icon.png') }}" />
     <link rel="stylesheet" href="{{ asset('css/style.css') }}" />
     {% block extra_head %}{% endblock %}
   </head>

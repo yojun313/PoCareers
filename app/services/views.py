@@ -38,6 +38,29 @@ def _detail_value(p: dict, label: str) -> str | None:
     return None
 
 
+def applicants(p: dict) -> dict:
+    """지원 현황: 지원자 수, 경쟁률, 최근 24시간 증가분, 마지막으로 바뀐 시각.
+
+    SES 목록의 '참여인원/모집인원' 중 참여인원이 지원자 수입니다.
+    """
+    count, quota = p.get("참여인원"), p.get("모집인원")
+    history = p.get("applicantsHistory") or []
+    delta = None
+    if count is not None and history:
+        since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        # 24시간 전 시점의 값 = 그 이전 마지막 기록. 그보다 오래된 기록이 없으면
+        # 이력 첫 값 (처음 본 게 24시간 안이면 그때부터의 증가분).
+        before = [n for t, n in history if t <= since]
+        delta = count - (before[-1] if before else history[0][1])
+    return {
+        "applicants": count,
+        "quota": quota,
+        "ratio": round(count / quota, 2) if count is not None and quota else None,
+        "applicantsDelta24h": delta,
+        "applicantsChangedAt": history[-1][0] if history else None,
+    }
+
+
 def posting_view(p: dict) -> dict:
     """API/템플릿에 넘길 공고 한 건 (상세 포함 여부는 호출하는 쪽이 정함)."""
     now = datetime.now(KST)
@@ -49,7 +72,9 @@ def posting_view(p: dict) -> dict:
             days=NEW_DAYS
         )
     view = {
-        k: v for k, v in p.items() if k not in ("detail", "rowSig", "detailFetchedAt")
+        k: v
+        for k, v in p.items()
+        if k not in ("detail", "rowSig", "detailFetchedAt", "applicantsHistory")
     }
     view.update(
         {
@@ -62,6 +87,8 @@ def posting_view(p: dict) -> dict:
             # 캘린더용 일정 (상세에만 있음). 예: '2026-12-02 00:00 (일정별도 협의)'
             "면접일자": _detail_value(p, "면접일자"),
             "최종선발일자": _detail_value(p, "최종선발일자"),
+            "진행상태": _detail_value(p, "진행상태"),
+            **applicants(p),
         }
     )
     return view
@@ -101,6 +128,7 @@ def company(slug: str) -> dict | None:
         v = posting_view(p)
         v["detail"] = p.get("detail") or []
         v["detailFetchedAt"] = p.get("detailFetchedAt")
+        v["applicantsHistory"] = p.get("applicantsHistory") or []
         postings.append(v)
     first = raw[0]
     return {
@@ -118,5 +146,8 @@ def company(slug: str) -> dict | None:
         ),
         "postings": postings,
         "activeCount": sum(1 for v in postings if not v["closed"]),
+        "applicantTotal": sum(
+            v["applicants"] or 0 for v in postings if not v["closed"]
+        ),
         "updatedAt": snap["updatedAt"],
     }

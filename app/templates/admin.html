@@ -5,7 +5,7 @@
   <div class="page-head">
     <div>
       <h1>관리자</h1>
-      <p class="page-sub">알림 메일 수신자와 SES 공고 수집 상태를 관리합니다.</p>
+      <p class="page-sub">알림 메일 수신자와 SES·전자게시판 수집 상태를 관리합니다.</p>
     </div>
   </div>
 
@@ -29,13 +29,13 @@
       <div class="admin-user-table-wrap">
         <table class="admin-user-table">
           <thead>
-            <tr><th>이메일</th><th class="admin-col-actions"></th></tr>
+            <tr><th>이메일</th><th class="admin-col-switch">SES 공고</th><th class="admin-col-switch">인턴·채용 게시판</th><th>관심 공고</th><th class="admin-col-actions"></th></tr>
           </thead>
           <tbody id="recipient-rows"></tbody>
         </table>
       </div>
       <div class="admin-log-pager">
-        <span>새 공고가 올라오면 위 주소 전원에게 한 통으로 보냅니다.</span>
+        <span>알림 종류별로 켜 둔 사람에게만 보냅니다. <b>SES 공고</b>: SES 현장실습 신규 공고 · <b>인턴·채용 게시판</b>: POSTECH 전자게시판 인턴 및 채용 공고 새 글 · <b>관심 공고</b>: 고른 공고에 지원자가 늘 때마다</span>
       </div>
     </div>
 
@@ -50,6 +50,22 @@
         <button class="btn btn-secondary" type="button" id="check-now-btn">지금 점검</button>
         <a class="btn btn-ghost" href="{{ SES_SEARCH_URL }}" target="_blank" rel="noopener">SES 열기</a>
       </div>
+    </div>
+  </div>
+
+  <div class="card admin-list-card">
+    <div class="admin-list-head">
+      <div class="admin-list-title">
+        <h2>관심 공고 지원 현황</h2>
+        <span class="admin-count" id="watch-count">0</span>
+      </div>
+      <span class="admin-list-sub">지원자가 늘면 관심 등록한 사람에게 메일을 보냅니다</span>
+    </div>
+    <div class="admin-user-table-wrap">
+      <table class="admin-user-table">
+        <thead><tr><th>공고</th><th class="num">지원/모집</th><th class="num admin-hide-sm">24시간</th><th class="admin-hide-sm">마지막 변동</th><th>받는 사람</th></tr></thead>
+        <tbody id="watch-rows"></tbody>
+      </table>
     </div>
   </div>
 
@@ -79,6 +95,26 @@
     <div class="dialog-footer">
       <button type="button" class="btn btn-ghost" data-dialog-close>취소</button>
       <button type="button" class="btn btn-danger" id="remove-confirm">삭제</button>
+    </div>
+  </div>
+</div>
+
+<div class="dialog-backdrop" id="watch-dialog" data-static-backdrop>
+  <div class="dialog dialog-md watch-dialog">
+    <div class="dialog-header">
+      <div>
+        <h2>관심 공고 선택</h2>
+        <div class="admin-muted watch-dialog-email" id="watch-email"></div>
+      </div>
+      <button class="btn-icon" type="button" data-dialog-close>&times;</button>
+    </div>
+    <input class="input" type="search" id="watch-search" placeholder="기관명·부서명·직무로 검색" autocomplete="off" />
+    <label class="watch-only-row"><input type="checkbox" id="watch-only" /> 선택한 공고만 보기</label>
+    <div class="watch-list" id="watch-list"></div>
+    <div class="dialog-footer">
+      <span class="watch-selected admin-muted" id="watch-selected"></span>
+      <button type="button" class="btn btn-ghost" data-dialog-close>취소</button>
+      <button type="button" class="btn btn-primary" id="watch-save">저장</button>
     </div>
   </div>
 </div>

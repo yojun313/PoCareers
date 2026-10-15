@@ -24,7 +24,7 @@ def _float(name: str, default: float) -> float:
         return default
 
 
-APP_NAME = "SES Notify"
+APP_NAME = "PoCareers"
 APP_FULL_NAME = "POSTECH 현장실습 공고 알림"
 SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "yojun313@postech.ac.kr")
 
@@ -35,10 +35,52 @@ SES_DETAIL_URL = f"{SES_BASE}/jobInternDetail.do"
 SES_ID = os.getenv("SES_ID", "")
 SES_PW = os.getenv("SES_PW", "")
 
+# ── POSTECH 전자게시판 (인턴 및 채용 공고) ──────────
+# SES 와 같은 통합 SSO 계정(SES_ID/SES_PW)으로 로그인합니다.
+BOARD_BASE = "https://board.postech.ac.kr"
+BOARD_NO = "128"
+BOARD_NAME = "인턴 및 채용 공고"
+# 이 분류는 목록조차 요청하지 않습니다 (교내 계약직·연구원 채용이라 학생 대상이 아님).
+BOARD_EXCLUDE = {"교내채용"}
+# 분류 탭 번호(remarkNo). 실제 번호는 매번 게시판 탭에서 다시 읽고, 첫 요청에만 씁니다.
+BOARD_FIRST_REMARK = "0"  # 인턴십
+BOARD_LIST_URL = f"{BOARD_BASE}/board/viewBoard.do"
+BOARD_POST_URL = f"{BOARD_BASE}/board/viewPost.do"
+BOARD_CONTENT_URL = f"{BOARD_BASE}/board/viewPostArtContent.do"
+BOARD_ENABLED = os.getenv("BOARD_ENABLED", "true").strip().lower() not in (
+    "0",
+    "false",
+    "no",
+    "off",
+    "",
+)
+
+
+def board_post_url(art_no: str) -> str:
+    """게시글 바로가기. 게시판은 틀(mainHome) 안 iframe 이라 ifrm 으로 글을 엽니다."""
+    return (
+        f"{BOARD_BASE}/home/mainHome.do?ifrm=/board/viewPost.do"
+        f"%3FboardNo%3D{BOARD_NO}%26artNo%3D{art_no}"
+    )
+
+
+def board_list_page_url() -> str:
+    return f"{BOARD_BASE}/home/mainHome.do?boardNo={BOARD_NO}"
+
+
 # ── 메일 ────────────────────────────────────────────
 GMAIL_ADDRESS = os.getenv("GMAIL_ADDRESS", "")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
 MAIL_ENABLED = bool(GMAIL_ADDRESS and GMAIL_APP_PASSWORD)
+# 상주 모드로 켜질 때 "알림 시스템이 시작되었습니다" 메일을 보낼지.
+# pm2 재시작마다 메일이 가는 게 번거로우면 false 로 끕니다.
+STARTUP_MAIL = os.getenv("STARTUP_MAIL", "true").strip().lower() not in (
+    "0",
+    "false",
+    "no",
+    "off",
+    "",
+)
 
 # ── 스케줄러 ────────────────────────────────────────
 # 최소 1분 - 그보다 짧으면 SES 서버에 부담만 줍니다.
@@ -77,6 +119,12 @@ STATE_DIR = BASE_DIR / "state"
 STORAGE_FILE = STATE_DIR / "storage.json"  # SES 로그인 세션 쿠키
 SEEN_FILE = STATE_DIR / "seen.json"  # 이미 알림 보낸 공고 키
 POSTINGS_FILE = STATE_DIR / "postings.json"  # 웹에 보여 줄 공고 스냅샷
+BOARD_STORAGE_FILE = STATE_DIR / "board_storage.json"  # 전자게시판 로그인 세션 쿠키
+BOARD_SEEN_FILE = STATE_DIR / "board_seen.json"  # 이미 확인한 게시글 번호
+BOARD_POSTS_FILE = STATE_DIR / "board_posts.json"  # 최근 게시글 (관리자 화면용)
+WATCH_COUNTS_FILE = (
+    STATE_DIR / "watch_counts.json"
+)  # 관심 공고별 마지막으로 알린 지원자 수
 RECIPIENTS_FILE = (
     BASE_DIR / "recipients.json"
 )  # 수신 이메일 목록 (관리자 화면에서 편집)

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} - {{ board_name }}{% endblock %}
+{% block content %}
+<div class="container board-page">
+  <div class="board-view-top">
+    <a class="board-back" href="/board" data-board-back>&larr; 목록으로 돌아가기</a>
+    <a class="btn btn-ghost btn-sm" href="{{ post.originalUrl }}" target="_blank" rel="noopener">원문 보기 &rarr;</a>
+  </div>
+
+  <article class="board-view">
+    <header class="board-view-head">
+      <h1>{{ post.title }}</h1>
+      <ul class="board-status">
+        <li>{{ post.writerFull }}</li>
+        {% if post.category %}<li><span class="tit">분류</span>{{ post.category }}</li>{% endif %}
+        <li>
+          <span class="tit">등록일</span>{{ post.postedAt }}
+          {% if post.modifiedAt %}<span class="tit board-status-gap">수정</span>{{ post.modifiedAt }}{% endif %}
+        </li>
+        {% if post.views is not none %}<li><span class="tit">조회수</span>{{ post.views }}</li>{% endif %}
+      </ul>
+    </header>
+
+    {% if post.attachments %}
+    <dl class="board-files">
+      <dt>첨부파일</dt>
+      <dd>
+        <ul>
+          {% for name in post.attachments %}
+          <li>
+            <span>{{ name }}</span>
+            <a href="{{ post.originalUrl }}" target="_blank" rel="noopener" title="POVIS 로그인 후 원문에서 다운로드">원문에서 다운로드</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </dd>
+    </dl>
+    {% endif %}
+
+    {% if post.contentHtml is not none %}
+    {# board_parser.sanitize_content 로 스크립트·이벤트 속성을 걷어 낸 HTML #}
+    <div class="board-content">{{ post.contentHtml | safe }}</div>
+    {% else %}
+    <p class="detail-missing">본문을 아직 받아 오지 못했습니다. 다음 점검 때 채워집니다 &middot;
+      <a href="{{ post.originalUrl }}" target="_blank" rel="noopener">원문 보기</a></p>
+    {% endif %}
+  </article>
+
+  <table class="board-prevnext">
+    <tbody>
+      <tr>
+        <th>이전글</th>
+        <td>{% if post.older %}<a href="/board/{{ post.older.artNo }}">{{ post.older.title }}</a>{% else %}<span class="admin-muted">이전글이 없습니다.</span>{% endif %}</td>
+        <td class="board-prevnext-meta">{% if post.older %}{{ post.older.writer }} · {{ post.older.date }}{% endif %}</td>
+      </tr>
+      <tr>
+        <th>다음글</th>
+        <td>{% if post.newer %}<a href="/board/{{ post.newer.artNo }}">{{ post.newer.title }}</a>{% else %}<span class="admin-muted">다음글이 없습니다.</span>{% endif %}</td>
+        <td class="board-prevnext-meta">{% if post.newer %}{{ post.newer.writer }} · {{ post.newer.date }}{% endif %}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="board-view-foot">
+    <a class="btn btn-secondary" href="/board" data-board-back>목록</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // 목록에서 들어왔으면 '목록'은 뒤로 가기 - 보던 분류·검색·페이지를 그대로 유지합니다.
+  document.querySelectorAll("[data-board-back]").forEach((a) => a.addEventListener("click", (e) => {
+    if (document.referrer && new URL(document.referrer).pathname === "/board") {
+      e.preventDefault();
+      history.back();
+    }
+  }));
+</script>
+{% endblock %}

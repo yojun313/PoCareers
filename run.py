@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-POSTECH SES 현장실습 공고 알림 + 공고 웹사이트 - 단일 진입점.
+POSTECH SES 현장실습 공고 알림 + 전자게시판 채용 공고 알림 + 공고 웹사이트 - 단일 진입점.
 
 실행:
   uv run run.py                  # 메일 스케줄러 + 웹 서버 동시 실행 (기본)
@@ -44,9 +44,12 @@ def main():
         sys.exit("[!] .env 에 SES_ID / SES_PW 가 필요합니다.")
 
     if "--once" in args:
-        from app.services.scheduler import check_once
+        from app.config import BOARD_ENABLED
+        from app.services.scheduler import check_board, check_once
 
         check_once(show=show, dry=dry)
+        if BOARD_ENABLED:
+            check_board(show=show, dry=dry)
         return 0
 
     # 웹 포트를 스케줄러보다 먼저 확인합니다. 바인딩 실패로 죽으면 pm2 가

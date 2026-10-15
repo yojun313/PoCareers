@@ -49,6 +49,11 @@ function groupByCompany(postings) {
     g.nextDeadline = (open[0] || g.postings[0]).deadlineIso || "9999";
     g.maxPay = Math.max(...g.postings.map((p) => payAmount(p["실습지원금"])));
     g.quota = g.postings.reduce((s, p) => s + (p["모집인원"] || 0), 0);
+    // 지원자·경쟁률은 아직 접수 중인 공고만 셉니다 (마감 공고는 숫자가 멈춰 있음).
+    const live = open.length ? open : g.postings;
+    g.applicants = live.reduce((s, p) => s + (p.applicants || 0), 0);
+    g.maxRatio = Math.max(0, ...live.map((p) => p.ratio || 0));
+    g.delta = live.reduce((s, p) => s + (p.applicantsDelta24h || 0), 0);
     g.newest = g.postings.map((p) => p.firstSeen || "").sort().pop();
     g.isNew = g.postings.some((p) => p.isNew);
     g.regions = [...new Set(g.postings.map((p) => p["근무지"]).filter(Boolean))];
@@ -58,6 +63,8 @@ function groupByCompany(postings) {
     new: (a, b) => String(b.newest).localeCompare(String(a.newest)),
     pay: (a, b) => b.maxPay - a.maxPay,
     quota: (a, b) => b.quota - a.quota,
+    applicants: (a, b) => (a.closed - b.closed) || b.applicants - a.applicants,
+    ratio: (a, b) => (a.closed - b.closed) || b.maxRatio - a.maxRatio,
     name: (a, b) => a.name.localeCompare(b.name, "ko"),
   }[state.sort];
   return groups.sort((a, b) => by(a, b) || a.name.localeCompare(b.name, "ko"));
@@ -116,6 +123,10 @@ function companyCard(g) {
         <span class="dept" title="${escapeHtml(p["부서명"])}">${escapeHtml(p["부서명"] || "부서 미지정")}
           <span class="dates">${escapeHtml(dates)}${p.weeks ? ` · ${p.weeks}주` : ""} · ${escapeHtml(p["실습지원금"] || "")}</span>
         </span>
+        <span class="apply-chip ${p.ratio >= 1 ? "hot" : ""}" data-applicants-jid="${escapeHtml(p.jid)}"
+          title="${escapeHtml(applicantsLabel(p))}${deltaText(p) ? " · " + deltaText(p) : ""}">
+          <b>${p.applicants == null ? "-" : p.applicants}</b>/${p.quota || "-"}명
+        </span>
         <span class="badge ${b.cls}" title="접수마감 ${escapeHtml(p["접수마감"])}">${b.text}</span>
       </div>`;
   }).join("");
@@ -135,7 +146,8 @@ function companyCard(g) {
       </div>
       <div class="company-postings">${rows}${more}</div>
       <div class="company-card-foot">
-        <span>공고 <b>${g.postings.length}</b>건 · 모집 <b>${g.quota}</b>명</span>
+        <span>공고 <b>${g.postings.length}</b>건 · 지원 <b>${g.applicants}</b> / 모집 <b>${g.quota}</b>명${
+          g.delta ? ` <span class="apply-delta">+${g.delta}</span>` : ""}</span>
         <span>최대 <b>${g.maxPay ? g.maxPay.toLocaleString() + "원" : "-"}</b></span>
       </div>
     </a>`;
@@ -183,14 +195,40 @@ async function load() {
       `<div class="empty-state">공고를 불러오지 못했습니다: ${escapeHtml(e.message)}</div>`;
     return;
   }
-  const meta = document.getElementById("updated-meta");
-  meta.innerHTML = state.data.updatedAt
-    ? `마지막 갱신 ${formatLocalTime(state.data.updatedAt)} (${timeAgo(state.data.updatedAt)})<br />
-       <a href="https://ses.postech.ac.kr/student/manage/search/index.do" target="_blank" rel="noopener">SES에서 지원하기 &rarr;</a>`
-    : "아직 수집 전";
+  renderMeta();
   fillDeptSelect();
   render();
+  if (!watching) {
+    watching = true;
+    watchApplicants(state.data, async (_, changed) => {
+      // 점검이 끝났으면 목록 전체를 다시 받습니다 (새 공고·마감도 같이 반영).
+      try {
+        state.data = await api.get("/api/postings");
+      } catch (e) {
+        return;
+      }
+      renderMeta();
+      render();
+      flashChanged(document, changed);
+    });
+  }
 }
+
+let watching = false;
+
+function renderMeta() {
+  const meta = document.getElementById("updated-meta");
+  meta.innerHTML = state.data.updatedAt
+    ? `<span class="live-dot" aria-hidden="true"></span>지원 현황 ${formatLocalTime(state.data.updatedAt)} 기준
+       (<span data-time-ago="${escapeHtml(state.data.updatedAt)}">${timeAgo(state.data.updatedAt)}</span>)<br />
+       <a href="https://ses.postech.ac.kr/student/manage/search/index.do" target="_blank" rel="noopener">SES에서 지원하기 &rarr;</a>`
+    : "아직 수집 전";
+}
+
+// '몇 분 전' 글자가 멈춰 있지 않게
+setInterval(() => {
+  document.querySelectorAll("[data-time-ago]").forEach((el) => { el.textContent = timeAgo(el.dataset.timeAgo); });
+}, 30000);
 
 document.addEventListener("DOMContentLoaded", () => {
   try {

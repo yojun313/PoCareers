@@ -3,7 +3,8 @@ from fastapi.responses import RedirectResponse
 
 from app.core.security import is_admin
 from app.core.templates import templates
-from app.services import views
+from app.config import BOARD_NAME, board_list_page_url
+from app.services import board_views, views
 
 router = APIRouter()
 
@@ -49,4 +50,40 @@ async def admin_page(request: Request):
         return RedirectResponse("/sign-in", status_code=303)
     return templates.TemplateResponse(
         request=request, name="admin.html", context={"is_admin": True}
+    )
+
+
+# 전자게시판은 POVIS 로그인이 있어야 보는 학교 내부 게시물이라, 이 사이트에서도
+# 관리자 로그인한 사람에게만 보여 줍니다.
+@router.get("/board")
+async def board_page(request: Request):
+    if not is_admin(request):
+        return RedirectResponse("/sign-in", status_code=303)
+    return templates.TemplateResponse(
+        request=request,
+        name="board.html",
+        context={
+            "is_admin": True,
+            "board_name": BOARD_NAME,
+            "board_url": board_list_page_url(),
+        },
+    )
+
+
+@router.get("/board/{art_no}")
+async def board_post_page(request: Request, art_no: str):
+    if not is_admin(request):
+        return RedirectResponse("/sign-in", status_code=303)
+    post = board_views.board_post(art_no) if art_no.isdigit() else None
+    if post is None:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse(
+        request=request,
+        name="board_post.html",
+        context={
+            "is_admin": True,
+            "post": post,
+            "board_name": BOARD_NAME,
+            "board_url": board_list_page_url(),
+        },
     )

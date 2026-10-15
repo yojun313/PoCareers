@@ -11,13 +11,16 @@ import traceback
 from datetime import datetime, timedelta, timezone
 
 from app.config import (
+    BOARD_ENABLED,
     CHECK_INTERVAL_SECONDS,
     DETAIL_REFRESH_SECONDS,
     MAIL_ENABLED,
+    STARTUP_MAIL,
     SES_ID,
     SES_PW,
 )
 from app.services import notify, store
+from app.services.board_client import ARCHIVE_SIZE, fetch_board
 from app.services.ses_client import fetch_all
 
 
@@ -39,7 +42,13 @@ def check_once(show: bool = False, dry: bool = False) -> dict:
     print(f"[*] 현재 공고 {len(rows)}건, 상세 {len(fetched['details'])}건 갱신.")
     store.merge_snapshot(fetched)
 
-    summary = {"total": len(rows), "new": 0, "sent": False}
+    summary = {"total": len(rows), "new": 0, "sent": False, "watch": 0}
+    try:
+        summary["watch"] = check_watches(dry=dry)
+    except Exception:
+        # 관심 공고 알림이 실패해도 신규 공고 알림은 그대로 진행합니다.
+        print("[!] 관심 공고 지원자 알림 중 오류:")
+        traceback.print_exc()
     first_run = not store.seen_exists()
     seen = store.migrate_seen(store.load_seen(), rows)
 
@@ -66,9 +75,11 @@ def check_once(show: bool = False, dry: bool = False) -> dict:
         print("[*] --dry-run: 메일 미발송.")
         return summary
 
-    recipients = store.load_recipients()
+    recipients = store.recipients_for("ses")
     if not recipients:
-        print("[!] 수신자가 없어 메일을 보내지 않습니다. seen 도 갱신하지 않습니다.")
+        print(
+            "[!] SES 알림 수신자가 없어 메일을 보내지 않습니다. seen 도 갱신하지 않습니다."
+        )
         store.save_seen(seen)
         return summary
     if not MAIL_ENABLED:
@@ -84,6 +95,121 @@ def check_once(show: bool = False, dry: bool = False) -> dict:
     return summary
 
 
+def check_watches(dry: bool = False) -> int:
+    """관심 공고의 지원자 수가 지난번 알린 값보다 늘었으면, 그 공고를 관심 등록한
+    수신자에게 알립니다. 반환: 지원자가 늘어난 관심 공고 수."""
+    recipients = [r for r in store.load_recipients() if r["watch"]]
+    if not recipients:
+        return 0
+    postings = store.load_snapshot()["postings"]
+    counts = store.load_watch_counts()
+    watched = {jid for r in recipients for jid in r["watch"]}
+    nxt = {jid: n for jid, n in counts.items() if jid in watched}
+    changes = {}  # jid -> (이전, 지금)
+    for jid in watched:
+        p = postings.get(jid)
+        count = p.get("참여인원") if p and p.get("active", True) else None
+        if not isinstance(count, int):
+            continue
+        before = counts.get(jid)
+        if before is not None and count > before:
+            changes[jid] = (before, count)
+        # 줄어든 경우(지원 취소)도 기준을 낮춰 둡니다 - 다시 늘면 그때 알림
+        nxt[jid] = count
+    if not changes:
+        store.save_watch_counts(nxt)
+        return 0
+
+    for jid, (before, count) in changes.items():
+        p = postings[jid]
+        print(
+            f"[+] 관심 공고 지원자 증가: {p.get('기관명', '')} / {p.get('부서명', '')} {before} -> {count}명"
+        )
+    if dry:
+        print("[*] --dry-run: 관심 공고 알림 미발송.")
+        return len(changes)
+    if not MAIL_ENABLED:
+        print("[!] .env 에 Gmail 발신 설정이 없어 관심 공고 알림을 보내지 않습니다.")
+        store.save_watch_counts(nxt)
+        return len(changes)
+
+    for r in recipients:
+        mine = [(postings[jid], *changes[jid]) for jid in r["watch"] if jid in changes]
+        if not mine:
+            continue
+        try:
+            notify.send_applicant_alert(mine, r["email"])
+        except Exception:
+            # 실패한 공고는 기준을 올리지 않아 다음 점검에 다시 보냅니다
+            print(f"[!] {r['email']} 관심 공고 알림 발송 실패:")
+            traceback.print_exc()
+            for p, before, _ in mine:
+                nxt[p["jid"]] = before
+    store.save_watch_counts(nxt)
+    return len(changes)
+
+
+def check_board(show: bool = False, dry: bool = False) -> dict:
+    """전자게시판 '인턴 및 채용 공고' 1회 점검. 새 글이 있으면 board 수신자에게 발송.
+
+    웹 화면용 보관함(최근 글 + 본문)도 이때 함께 채웁니다.
+    반환: {"new", "sent"} 요약.
+    """
+    print("[*] 전자게시판 인턴 및 채용 공고 확인 중 ...")
+    first_run = not store.board_seen_exists()
+    seen = None if first_run else store.load_board_seen()
+    fetched = fetch_board(
+        SES_ID,
+        SES_PW,
+        seen,
+        have={k: p.get("category", "") for k, p in store.load_board()["posts"].items()},
+        need_detail=store.board_needs_detail,
+        headless=not show,
+    )
+    store.merge_board(fetched, keep=ARCHIVE_SIZE)
+    print(
+        f"[*] 게시판 목록 {len(fetched['listed'])}건, 본문 {len(fetched['details'])}건 갱신."
+    )
+
+    if first_run:
+        print(
+            f"[*] 게시판 최초 실행: 지금 있는 글 {len(fetched['listed'])}건을 기준선으로 저장(메일 미발송)."
+        )
+        store.save_board_seen({p["artNo"] for p in fetched["listed"]})
+        return {"new": 0, "sent": False}
+
+    new = fetched["new"]
+    summary = {"new": len(new), "sent": False}
+    if not new:
+        print("[*] 게시판 새 글 없음.")
+        return summary
+
+    print(f"[+] 게시판 새 글 {len(new)}건:")
+    for p in new:
+        print(
+            f"    - [{p.get('category', '')}] {p.get('title', '')} ({p.get('writer', '')})"
+        )
+    if dry:
+        print("[*] --dry-run: 메일 미발송.")
+        return summary
+
+    recipients = store.recipients_for("board")
+    if not recipients:
+        # 받을 사람이 없으면 본 것으로 칩니다 - 나중에 누가 켜도 지난 글이 몰려오지 않게
+        print("[*] 게시판 알림 수신자가 없어 메일을 보내지 않습니다.")
+        store.save_board_seen(seen | {p["artNo"] for p in new})
+        return summary
+    if not MAIL_ENABLED:
+        print("[!] .env 에 Gmail 발신 설정이 없어 메일을 보내지 않습니다.")
+        store.save_board_seen(seen | {p["artNo"] for p in new})
+        return summary
+
+    if notify.send_board_posts(new, recipients):
+        summary["sent"] = True
+        store.save_board_seen(seen | {p["artNo"] for p in new})
+    return summary
+
+
 class Scheduler:
     def __init__(self):
         self.interval = CHECK_INTERVAL_SECONDS
@@ -93,6 +219,10 @@ class Scheduler:
         self.last_ok_at = None
         self.last_error = None
         self.last_summary = None
+        self.board_enabled = BOARD_ENABLED
+        self.board_last_ok_at = None
+        self.board_last_error = None
+        self.board_last_summary = None
         self.next_check_at = None
         self._wake = threading.Event()
         self._thread = None
@@ -130,12 +260,22 @@ class Scheduler:
             "nextCheckAt": self.next_check_at,
             "mailEnabled": MAIL_ENABLED,
             "dryRun": self._dry,
+            "board": {
+                "enabled": self.board_enabled,
+                "lastOkAt": self.board_last_ok_at,
+                "lastError": self.board_last_error,
+                "lastSummary": self.board_last_summary,
+            },
         }
 
     def _loop(self, startup_mail):
         print(f"[*] 스케줄러 시작: {self.interval // 60}분 주기로 점검합니다.")
-        if startup_mail and not self._dry and MAIL_ENABLED:
-            recipients = store.load_recipients()
+        if startup_mail and STARTUP_MAIL and not self._dry and MAIL_ENABLED:
+            recipients = [
+                r["email"]
+                for r in store.load_recipients()
+                if any(r.get(k) for k in store.KINDS)
+            ]
             if recipients:
                 try:
                     notify.send_startup(recipients, self.interval // 60)
@@ -158,8 +298,19 @@ class Scheduler:
                 print("[!] 이번 점검 중 오류 발생 (다음 주기에 재시도):")
                 traceback.print_exc()
                 self.last_error = f"{type(e).__name__}: {e}"
-            finally:
-                self.checking = False
+            if self.board_enabled:
+                # 게시판은 SES 와 별개 - 한쪽이 실패해도 다른 쪽은 진행합니다.
+                try:
+                    self.board_last_summary = check_board(
+                        show=self._show, dry=self._dry
+                    )
+                    self.board_last_ok_at = store.now_iso()
+                    self.board_last_error = None
+                except Exception as e:
+                    print("[!] 게시판 점검 중 오류 발생 (다음 주기에 재시도):")
+                    traceback.print_exc()
+                    self.board_last_error = f"{type(e).__name__}: {e}"
+            self.checking = False
             nxt = datetime.now(timezone.utc) + timedelta(seconds=self.interval)
             self.next_check_at = nxt.isoformat(timespec="seconds")
             self._wake.wait(self.interval)
