@@ -30,7 +30,6 @@ function parseSchedule(text) {
 function buildEvents(postings) {
   const out = [];
   for (const p of postings) {
-    if (!p.active) continue; // SES 에서 내려간 공고는 달력에서 뺍니다
     const add = (kind, sched) => sched && out.push({ kind, ...sched, p });
     add("deadline", parseSchedule(p["접수마감"]));
     add("interview", parseSchedule(p["면접일자"]));

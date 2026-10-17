@@ -19,7 +19,8 @@ function renderStatus(s) {
   const sch = s.scheduler;
   document.getElementById("admin-stat-cards").innerHTML =
     statCard("진행 중 공고", s.activePostings, `기업 ${s.companies}곳`) +
-    statCard("모집 기간", s.periods.length, s.periods.map((p) => escapeHtml(p.short)).join(" · ")) +
+    statCard("모집 기간", s.periods.filter((p) => !p.ended).length,
+      s.periods.filter((p) => !p.ended).map((p) => escapeHtml(p.short)).join(" · ")) +
     statCard("메일 수신자", s.recipients.length,
       `SES ${s.recipients.filter((r) => r.ses).length}명 · 게시판 ${s.recipients.filter((r) => r.board).length}명`,
       s.recipients.length && sch.mailEnabled ? "" : "danger") +
@@ -73,9 +74,10 @@ function renderStatus(s) {
 
   document.getElementById("period-rows").innerHTML = s.periods.length
     ? s.periods.map((p) => `<tr>
-        <td><span class="badge ${periodClass(p.jsSeq)}">${escapeHtml(p.short)}</span> ${escapeHtml(p.name)}</td>
+        <td><span class="badge ${periodClass(p.jsSeq)}">${escapeHtml(p.short)}</span> ${escapeHtml(p.name)}
+          ${p.ended ? `<span class="badge badge-muted">SES 에서 내려감</span>` : ""}</td>
         <td class="admin-muted">${escapeHtml(p.jsSeq)}</td>
-        <td class="num">${p.count}</td></tr>`).join("")
+        <td class="num">${p.ended ? "-" : p.count}</td></tr>`).join("")
     : `<tr><td colspan="3" class="admin-muted" style="padding: 20px; text-align: center;">수집된 기간이 없습니다.</td></tr>`;
 
   renderWatches(s.watches);

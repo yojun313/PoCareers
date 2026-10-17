@@ -107,9 +107,26 @@ def merge_snapshot(fetched: dict) -> dict:
             if jid not in current and p.get("active", True):
                 p["active"] = False
                 p["removedAt"] = stamp
-        data = {"updatedAt": stamp, "periods": fetched["periods"], "postings": postings}
+        data = {
+            "updatedAt": stamp,
+            "periods": _merge_periods(old["periods"], fetched["periods"]),
+            "postings": postings,
+        }
         _write_json(POSTINGS_FILE, data)
         return data
+
+
+def _merge_periods(old: list[dict], current: list[dict]) -> list[dict]:
+    """모집 기간 탭이 SES 에서 사라져도 지우지 않고 뒤에 붙여 둡니다 (ended=True).
+    그 기간 공고도 계속 보관하므로 웹에서 기간별로 골라 볼 수 있어야 합니다.
+    현재 탭이 앞에 오므로 기간별 색(탭 순서)은 그대로입니다."""
+    seen = {str(p["jsSeq"]) for p in current}
+    out = [{**p, "ended": False} for p in current]
+    for p in old:
+        if str(p.get("jsSeq")) not in seen:
+            out.append({**p, "ended": True})
+            seen.add(str(p.get("jsSeq")))
+    return out
 
 
 # 지원자 수 이력은 바뀔 때만 한 점씩 쌓습니다. 접수 기간 동안 수십 번이면
