@@ -19,9 +19,9 @@ SES 는 같은 시즌이라도 **실습 기간별로 탭이 나뉘어** 있습�
 ## 동작 방식
 1. 저장된 세션으로 `현장실습 기관조회` 접근 (만료 시 SSO 자동 재로그인, Playwright)
 2. 진행 중인 모든 기간 탭 × 모든 페이지의 공고 목록 수집
-3. 공고별 상세(`/jobInternDetail.do`)를 받아 `state/postings.json` 에 저장 (웹 화면의 데이터)
+3. 공고별 상세(`/jobInternDetail.do`)를 받아 MongoDB `postings` 에 저장 (웹 화면의 데이터, 내려간 공고도 보관)
    - 상세는 새 공고·목록 값이 바뀐 공고만 받고, 그 외에는 `DETAIL_REFRESH_HOURS` 마다 갱신
-4. `state/seen.json`(이미 보낸 공고, SES 공고번호 기준)과 비교해 **신규 공고만** 메일 발송
+4. MongoDB `notified`(이미 보낸 공고, SES 공고번호 기준)와 비교해 **신규 공고만** 메일 발송
 
 > 최초 실행 시에는 기존 공고를 "기준선"으로만 저장하고 메일을 보내지 않습니다.
 > SES 목록에서 내려간 공고는 지우지 않고 "마감"으로 남겨 둡니다 (홈의 "마감된 공고도 보기").
@@ -45,10 +45,29 @@ cp .env.example .env
 | `BASE_URL` | 외부 접속 주소. 알림 메일에 "공고 모아보기" 링크로 들어감 |
 | `ADMIN_ID` / `ADMIN_PASSWORD` | `/admin` 관리자 로그인 계정 |
 
-메일 수신자는 웹의 **관리자 화면**에서 관리합니다 (`recipients.json` 에 저장).
+메일 수신자는 웹의 **관리자 화면**에서 관리합니다 (MongoDB `recipients` 에 저장).
 
 수신자마다 **관심 공고**를 고를 수 있습니다. 점검 때 그 공고의 지원자 수가 지난번 알린 값보다
-늘었으면 그 사람에게 "[지원자 알림]" 메일을 보냅니다 (기준값은 `state/watch_counts.json`).
+늘었으면 그 사람에게 "[지원자 알림]" 메일을 보냅니다 (기준값은 MongoDB `watches`).
+
+## 저장소 (MongoDB)
+
+`.env` 의 `MONGO_*` 로 접속합니다 (DB 이름 기본 `pocareers`). 처음 켤 때 예전
+`state/*.json`·`recipients.json` 을 DB 로 옮기고 원본은 `state/legacy-json/` 으로 치웁니다.
+로그인 세션 쿠키(`state/storage.json`, `state/board_storage.json`)만 파일로 남습니다.
+
+| 컬렉션 | 내용 |
+|---|---|
+| `postings` | SES 공고 1건 = 문서 1개 (`_id` = 공고 번호). 목록 값, 상세, 지원자 수 이력(`applicantsHistory`), 마감 1분 전 점검 결과(`finalCheck`). 내려간 공고도 `active: false` 로 보관 |
+| `posting_changes` | 마감일·모집 인원 등 목록 값이 바뀐 기록, SES 에서 내려감/다시 올라옴 |
+| `periods` | 모집 기간 탭. 내려간 기간은 `ended: true` |
+| `board_posts` | 전자게시판 인턴 및 채용 공고 (`_id` = 글 번호, 본문 포함, 지난 글도 보관) |
+| `recipients` / `watches` | 메일 수신자와 관심 공고, 관심 공고별 마지막으로 알린 지원자 수 |
+| `notified` | 알림 판단을 끝낸 공고·글 (`ses:<번호>`, `board:<번호>`) |
+| `mail_log` / `check_log` | 보낸 메일, 점검 1회마다의 기록 (주기·마감 직전·수동) |
+
+**마감 직전 점검**: 주기 점검과 별개로, 진행 중인 공고의 접수 마감 1분 전에 한 번 더
+무조건 점검하고 그 공고의 상세도 다시 받아, 마감 시점 지원자 수를 `finalCheck` 에 남깁니다.
 
 ## 실행
 ```bash
@@ -75,7 +94,7 @@ app/
     ses_client.py      SES 로그인·목록·상세 수집 (Playwright)
     parser.py          기간 탭·공고 표·상세 항목 파싱
     scheduler.py       점검 루프, 신규 판정, 발송
-    store.py           state/*.json, recipients.json 읽기/쓰기
+    store.py           MongoDB 읽기/쓰기 (예전 state/*.json 은 처음 한 번 옮김)
     views.py           기업별 묶음, 마감 D-day 등 화면용 가공
     notify.py          Gmail 발송
   templates/, static/  화면 (Commeet 디자인 시스템)

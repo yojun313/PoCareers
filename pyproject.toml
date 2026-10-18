@@ -9,6 +9,7 @@ dependencies = [
     "itsdangerous>=2.2",
     "jinja2>=3.1",
     "playwright>=1.40",
+    "pymongo>=4.18.3",
     "python-dotenv>=1.0",
     "uvicorn>=0.30",
 ]

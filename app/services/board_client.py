@@ -25,7 +25,9 @@ from app.services import board_parser, sso
 
 # 웹 화면에 보관하는 분류별 최근 글 수 (페이지당 10건 -> 처음 한 번 10쪽까지 읽어 채움).
 PER_CATEGORY = 100
-ARCHIVE_SIZE = PER_CATEGORY * 3
+ARCHIVE_SIZE = (
+    PER_CATEGORY * 3
+)  # 처음 채울 때 기준 (보관함은 지난 글도 지우지 않습니다)
 # 한 번 점검에 분류마다 읽는 목록 페이지 상한.
 MAX_PAGES = 10
 # 한 번 점검에 본문을 받는 글 수 상한 (새 글 제외). 보관함을 처음 채울 때

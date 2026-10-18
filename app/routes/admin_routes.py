@@ -71,6 +71,7 @@ def _summary():
         "mailSender": GMAIL_ADDRESS,
         "recipients": recipients,
         "watches": _watches(snap, recipients),
+        "recentMails": store.recent_mails(15),
         "updatedAt": snap["updatedAt"],
         "periods": snap["periods"],
         "activePostings": len(active),

@@ -61,6 +61,9 @@ function renderStatus(s) {
     <dt>마지막 점검</dt><dd>${formatLocalTime(sch.lastCheckAt)}</dd>
     <dt>마지막 성공</dt><dd>${formatLocalTime(sch.lastOkAt)}</dd>
     <dt>다음 점검</dt><dd>${sch.running && !sch.checking ? formatLocalTime(sch.nextCheckAt) : "-"}</dd>
+    <dt>마감 직전 점검</dt><dd>${sch.nextDeadlineCheck
+      ? `${formatLocalTime(sch.nextDeadlineCheck.at)} · ${escapeHtml(sch.nextDeadlineCheck.label)}${sch.nextDeadlineCheck.count > 1 ? ` 외 ${sch.nextDeadlineCheck.count - 1}건` : ""}`
+      : "-"}</dd>
     <dt>SES 결과</dt><dd>${sum ? `공고 ${sum.total}건 · 신규 ${sum.new}건${sum.sent ? " · 메일 발송" : ""}${sum.watch ? ` · 관심 공고 지원자 증가 ${sum.watch}건` : ""}` : "-"}</dd>
     <dt>게시판 결과</dt><dd>${boardResult(sch.board)}</dd>
     <dt>데이터 갱신</dt><dd>${formatLocalTime(s.updatedAt)}</dd>`;
@@ -81,6 +84,7 @@ function renderStatus(s) {
     : `<tr><td colspan="3" class="admin-muted" style="padding: 20px; text-align: center;">수집된 기간이 없습니다.</td></tr>`;
 
   renderWatches(s.watches);
+  renderMails(s.recentMails || []);
 
   clearTimeout(pollTimer);
   pollTimer = setTimeout(load, sch.checking ? 3000 : 30000);
@@ -145,6 +149,19 @@ function renderWatchList() {
         </span></label>`).join("")
     : `<div class="admin-muted" style="padding: 24px; text-align: center;">조건에 맞는 공고가 없습니다.</div>`;
   document.getElementById("watch-selected").textContent = `${watchEdit.selected.size}개 선택`;
+}
+
+const MAIL_KINDS = { ses: "SES 공고", board: "인턴·채용", watch: "관심 공고", startup: "시작 알림", test: "테스트" };
+
+function renderMails(mails) {
+  document.getElementById("mail-rows").innerHTML = mails.length
+    ? mails.map((m) => `<tr>
+        <td class="admin-muted">${formatLocalTime(m.at)}</td>
+        <td><span class="badge badge-muted">${escapeHtml(MAIL_KINDS[m.kind] || m.kind)}</span></td>
+        <td class="wrap">${escapeHtml(m.subject)}</td>
+        <td class="wrap admin-muted admin-hide-sm">${m.to.map(escapeHtml).join(", ")}</td>
+        <td>${m.ok ? "발송" : `<span class="admin-btn-danger" title="${escapeHtml(m.error || "")}">실패</span>`}</td></tr>`).join("")
+    : `<tr><td colspan="5" class="admin-muted" style="padding: 20px; text-align: center;">보낸 메일이 없습니다.</td></tr>`;
 }
 
 function boardResult(b) {

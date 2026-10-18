@@ -78,19 +78,31 @@ def _postings_html(postings: list[dict]) -> str:
 
 
 def _send(
-    subject: str, body_html: str, recipients: list[str], sender_name: str = "SES 알림"
+    subject: str,
+    body_html: str,
+    recipients: list[str],
+    sender_name: str = "SES 알림",
+    kind: str = "ses",
 ) -> None:
+    """발송하고 mail_log 에 남깁니다. kind: ses / board / watch / startup / test."""
     if not MAIL_ENABLED:
         raise MailNotConfigured(
             ".env 에 GMAIL_ADDRESS / GMAIL_APP_PASSWORD 가 없습니다."
         )
+    from app.services import store  # 순환 import 방지
+
     msg = MIMEText(body_html, "html", "utf-8")
     msg["Subject"] = Header(subject, "utf-8")
     msg["From"] = formataddr((str(Header(sender_name, "utf-8")), GMAIL_ADDRESS))
     msg["To"] = ", ".join(recipients)
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as s:
-        s.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
-        s.sendmail(GMAIL_ADDRESS, recipients, msg.as_string())
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as s:
+            s.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+            s.sendmail(GMAIL_ADDRESS, recipients, msg.as_string())
+    except Exception as e:
+        store.log_mail(kind, subject, recipients, False, f"{type(e).__name__}: {e}")
+        raise
+    store.log_mail(kind, subject, recipients, True)
 
 
 def send_new_postings(postings: list[dict], recipients: list[str]) -> bool:
@@ -153,6 +165,7 @@ def send_applicant_alert(items: list[tuple[dict, int, int]], recipient: str) -> 
         _applicant_html(items),
         [recipient],
         sender_name="SES 지원자 알림",
+        kind="watch",
     )
     print(f"[O] {recipient} 에게 관심 공고 지원자 알림 {len(items)}건 발송 완료.")
 
@@ -205,6 +218,7 @@ def send_board_posts(posts: list[dict], recipients: list[str]) -> bool:
         _board_html(posts),
         recipients,
         sender_name="POSTECH 채용 알림",
+        kind="board",
     )
     print(f"[O] {len(recipients)}명에게 게시판 새 글 {len(posts)}건 발송 완료.")
     return True
@@ -220,7 +234,7 @@ def send_startup(recipients: list[str], interval_min: int) -> bool:
         f"'{escape(BOARD_NAME)}'을 점검하여, 받기로 설정한 알림을 이 주소로 보냅니다.</p>"
         + _links()
     )
-    _send("[SES 알림] 알림 시스템이 시작되었습니다", body, recipients)
+    _send("[SES 알림] 알림 시스템이 시작되었습니다", body, recipients, kind="startup")
     print(f"[O] 시작 알림을 {len(recipients)}명에게 발송했습니다.")
     return True
 
@@ -231,4 +245,4 @@ def send_test(recipient: str) -> None:
         "<p>이 메일을 받으셨다면 SES 공고·전자게시판 새 글 알림도 이 주소로 정상 발송됩니다.</p>"
         + _links()
     )
-    _send("[SES 알림] 테스트 메일", body, [recipient])
+    _send("[SES 알림] 테스트 메일", body, [recipient], kind="test")

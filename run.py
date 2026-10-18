@@ -43,6 +43,13 @@ def main():
     if not no_scheduler and not (SES_ID and SES_PW):
         sys.exit("[!] .env 에 SES_ID / SES_PW 가 필요합니다.")
 
+    from app.services import store
+
+    try:
+        store.init()  # MongoDB 연결 확인 + 예전 state/*.json 옮기기 (처음 한 번)
+    except Exception as e:
+        sys.exit(f"[!] MongoDB 에 연결하지 못했습니다 (.env 의 MONGO_*): {e}")
+
     if "--once" in args:
         from app.config import BOARD_ENABLED
         from app.services.scheduler import check_board, check_once

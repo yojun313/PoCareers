@@ -114,17 +114,27 @@ SESSION_SECRET = (
     ).hexdigest()
 )
 
+# ── MongoDB ─────────────────────────────────────────
+# 공고·게시판 보관함, 수신자, 알림/점검 기록을 모두 여기에 둡니다.
+MONGO_HOST = os.getenv("MONGO_HOST", "localhost")
+MONGO_PORT = int(os.getenv("MONGO_PORT", "27017"))
+MONGO_USERNAME = os.getenv("MONGO_USERNAME", "")
+MONGO_PASSWORD = os.getenv("MONGO_PASSWORD", "")
+MONGO_AUTH_DB = os.getenv("MONGO_AUTH_DB", "admin")
+MONGO_DB = os.getenv("MONGO_DB", "pocareers")
+
 # ── 상태 파일 ───────────────────────────────────────
+# 로그인 세션 쿠키만 파일로 둡니다 (Playwright 가 파일로 읽고 쓰는 캐시라
+# 지워져도 다시 로그인할 뿐입니다). 나머지 *.json 은 예전 저장 방식으로,
+# 처음 MongoDB 로 옮길 때만 읽습니다.
 STATE_DIR = BASE_DIR / "state"
 STORAGE_FILE = STATE_DIR / "storage.json"  # SES 로그인 세션 쿠키
-SEEN_FILE = STATE_DIR / "seen.json"  # 이미 알림 보낸 공고 키
-POSTINGS_FILE = STATE_DIR / "postings.json"  # 웹에 보여 줄 공고 스냅샷
 BOARD_STORAGE_FILE = STATE_DIR / "board_storage.json"  # 전자게시판 로그인 세션 쿠키
-BOARD_SEEN_FILE = STATE_DIR / "board_seen.json"  # 이미 확인한 게시글 번호
-BOARD_POSTS_FILE = STATE_DIR / "board_posts.json"  # 최근 게시글 (관리자 화면용)
-WATCH_COUNTS_FILE = (
-    STATE_DIR / "watch_counts.json"
-)  # 관심 공고별 마지막으로 알린 지원자 수
-RECIPIENTS_FILE = (
-    BASE_DIR / "recipients.json"
-)  # 수신 이메일 목록 (관리자 화면에서 편집)
+LEGACY_FILES = {
+    "postings": STATE_DIR / "postings.json",
+    "seen": STATE_DIR / "seen.json",
+    "board_posts": STATE_DIR / "board_posts.json",
+    "board_seen": STATE_DIR / "board_seen.json",
+    "watch_counts": STATE_DIR / "watch_counts.json",
+    "recipients": BASE_DIR / "recipients.json",
+}
