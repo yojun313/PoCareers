@@ -1,5 +1,5 @@
 [project]
-name = "ses-notify"
+name = "PoCareers"
 version = "0.2.0"
 description = "POSTECH SES 현장실습 공고 알림 + 기업별 공고 웹사이트"
 requires-python = ">=3.10"
