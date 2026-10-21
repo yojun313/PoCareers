@@ -112,9 +112,8 @@ function render() {
 
 async function load() {
   try {
-    state.data = await api.get("/api/admin/board");
+    state.data = await api.get("/api/board");
   } catch (e) {
-    if (e.status === 401) { window.location.href = "/sign-in"; return; }
     document.getElementById("board-rows").innerHTML =
       `<tr><td colspan="6" class="board-empty">글을 불러오지 못했습니다: ${escapeHtml(e.message)}</td></tr>`;
     return;

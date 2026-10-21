@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from app.config import GMAIL_ADDRESS
 from app.core.security import require_admin
-from app.services import board_views, notify, store, views
+from app.services import notify, store, views
 from app.services.scheduler import scheduler
 
 router = APIRouter(prefix="/api/admin", dependencies=[Depends(require_admin)])
@@ -131,9 +131,3 @@ async def check_now():
             detail="스케줄러가 실행 중이 아닙니다 (run.py --no-scheduler).",
         )
     return _summary()
-
-
-@router.get("/board")
-async def board_list():
-    """인턴 및 채용 공고 보관함 목록 (본문 제외). 학교 게시판 글이라 관리자만 봅니다."""
-    return board_views.board_list()

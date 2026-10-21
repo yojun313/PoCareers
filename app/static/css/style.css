@@ -2346,9 +2346,45 @@ select.list-sort-select {
   }
 }
 
+.sign-in-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.sign-in-btn svg {
+  display: none;
+}
+.brand-mark {
+  white-space: nowrap;
+}
+
+/* 좁은 화면: 탭 3개(SES·인턴·채용·캘린더)에 로그인 버튼까지 들어가도록
+   로그인 버튼은 아이콘만 남깁니다. */
+@media (max-width: 480px) {
+  .sign-in-btn {
+    padding: 6px;
+  }
+  .sign-in-btn svg {
+    display: block;
+  }
+  .sign-in-btn span {
+    display: none;
+  }
+}
+
 @media (max-width: 420px) {
   .brand-mark {
     font-size: 19px;
+  }
+  .site-header .container {
+    gap: 6px;
+  }
+  .nav-links a {
+    padding: 7px 6px;
+  }
+  .theme-toggle-btn {
+    width: 32px;
+    height: 32px;
   }
 }
 
